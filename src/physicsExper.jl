@@ -1,48 +1,33 @@
 using DifferentialEquations
 using Plots
 using CSV
+using FFTW
 
-data = CSV.read("/home/gnugnu/문서/physicsExperiment/num4.csv")
+filepostion = "/home/gnugnu/문서/Pendulum-experiment-analysis"
+filename = "num6"
+data = CSV.read(filepostion*"/data/"*filename*".csv") 
 light = data[!,:2]  
 n=length(light)
-min = max = light[1]
-for i in 1:n
-    global  min, max    
-    if(min > light[i]) min = light[i]
-    end
-    if(max < light[i]) max = light[i]
-    end
-end
 
 newlight = Float64[]
 for i in 1:n
-    push!(newlight, light[i] - min)
+    push!(newlight, light[i] - minimum(light))
 end
 
 l = 0.2                             # length [m]
 R = 0.012/2                             # radius of ball 
-m = 7.1206e-3
-r = 0.007/2                             #radius of detector
+m = 7.1206e-3                           # mass of ball 
+r = 0.007/2                             #radius of light sensor
 g = 9.81                            # gravitational acceleration [m/s²]
-b = 6*pi*1e-3*r+2.5e-5
+t = 0.33
+dt = 2e-3
 
-
-function pendulum!(du,u,p,t)
-    du[1] = u[2]                    # θ'(t) = ω(t)
-    du[2] = -g/l*sin(u[1]) - b*(u[2])/m  # ω'(t) = -g/l sin θ(t) - b ω(t) / m
-end
-
-θ₀ = 0.049958395721942765        # initial angular deflection [rad]
+θ₀ = atan(1/40)        # initial angular deflection [rad]
 ω₀ = 0.0                           # initial angular velocity [rad/s]
 u₀ = [θ₀, ω₀]                       # initial state vector
-tspan = (0.0, data[n,:1])                 # time interval
+tspan = (0.0, t+data[n,:1])                 # time interval
 
-
-prob = ODEProblem(pendulum!,u₀,tspan)
-alg = RK4()
-sol = solve(prob,alg,dt = 2e-3,adaptive=false)
-
-function f(theta) # i have to fix because ball and detector's radius is different 
+function f(theta) # i have to fix because ball and light's radius is different 
     a = l*sin(abs(theta/2))
     if(a<r) s = a*sqrt(r^2-a^2) + r^2*atan(a/(r^2-a^2))
         else s = pi*r^2
@@ -51,7 +36,7 @@ function f(theta) # i have to fix because ball and detector's radius is differen
 end
 
 function f2(theta)
-  s = max-min;
+  s = maximum(newlight);
   a = l*sin(theta)
   b = l - l*cos(theta)
   x1 = sqrt(R^2-r^2) - a
@@ -69,13 +54,67 @@ function f2(theta)
   return ans*s
 end
 
+function pendulum(du,u,p,t)
+    du[1] = u[2]                    # θ'(t) = ω(t)
+    du[2] = -g/l*sin(u[1]) - p(t)*(u[2])/m  # ω'(t) = -g/l sin θ(t) - b ω(t) / m
+end
+
+AA = Float64[]
+Fexp = fft(newlight)
+absFexp = Float64[]
+for i in 1:length(Fexp)
+    push!(absFexp, abs(Fexp[i]))
+end
+
+num = 0.0:0.4:16
+for i in num
+    b = t -> 6*pi*1e-3*r+i*1e-5
+    prob = ODEProblem(pendulum,u₀,tspan,b)
+    alg = RK4()
+    sol = solve(prob,alg,dt = 2e-3,adaptive=false)
+    result = Float64[]
+    for i in 1:length(sol.t)
+        push!(result, f2(sol[1,i]))
+    end
+    k = Int(t/dt)
+    d= n
+    Fcal = fft(result[k+1:k+d])
+    absdeltaF = Float64[]
+    for i in 1:length(Fexp)
+        push!(absdeltaF, abs(Fexp[i]-Fcal[i]))
+    end
+    x = sum(absdeltaF)/sum(absFexp)
+    push!(AA, x)
+end
+plot(num, AA)
+name = filepostion*"/result/"*filename*"/"*filename*"_AA.png"
+savefig(name)
+
+
+b = t -> 6*pi*1e-3*r+num[findfirst(x->x==minimum(AA),AA)] *1e-5
+prob = ODEProblem(pendulum,u₀,tspan,b)
+alg = RK4()
+sol = solve(prob,alg,dt = 2e-3,adaptive=false)
 
 result = Float64[]
 for i in 1:length(sol.t)
     push!(result, f2(sol[1,i]))
 end
 
-plot(sol.t,result)
-plot!(sol.t, newlight)
-savefig("/home/gnugnu/문서/physicsExperiment/wa2.png")
+k = Int(t/dt)
 
+start= 1
+d = 1000
+
+plot(sol.t[k+start:k+start+d], newlight[start:start+d], label = "data", size = (1920,1080), title = "simulation at b = "*string(b(0)))
+plot!(sol.t[k+start:k+start+d],result[k+start:k+start+d],label = "simulation")
+xlabel!("Time(s)")
+ylabel!("Light Intensity(%)")
+savefig(filepostion*"/result/"*filename*"/"*filename*"_sim_in_"*string(start*dt)*"to"*string((start+d)*dt)*".png")
+
+d= n
+plot(sol.t[k+1:k+d], newlight[1:d], label = "data", size = (1920,1080), title = "simulation at b = "*string(b(0)))
+plot!(sol.t[k+1:k+d],result[k+1:k+d],label = "simulation")
+xlabel!("Time(s)")
+ylabel!("Light Intensity(%)")
+savefig(filepostion*"/result/"*filename*"/"*filename*"_sim_in_whole.png")
