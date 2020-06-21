@@ -5,10 +5,12 @@ using FFTW
 using StatsBase
 
 filepostion = "/home/gnugnu/문서/Pendulum-experiment-analysis"
-filename = "num4"
+print("filename: ")
+filename = readline()
 data = CSV.read(filepostion*"/data/"*filename*".csv") 
 light = data[!,:2]  
 n=length(light)
+println("n: "*string(n))
 
 newlight = Float64[]
 for i in 1:n
@@ -21,8 +23,9 @@ m = 7.1206e-3                       # mass of ball
 r = 0.007/2                         # radius of light sensor
 g = 9.81                            # gravitational acceleration [m/s²]
 dt = 2e-3
-
-θ₀ = atan(1/20)                    # initial angular deflection [rad]
+print("θ₀[rad]: ")
+theta0 = parse(Float64, readline())
+θ₀ = atan(theta0)                    # initial angular deflection [rad]
 ω₀ = 0.0                           # initial angular velocity [rad/s]
 u₀ = [θ₀, ω₀]                       # initial state vector
 tspan = (0.0, data[n,:1])        # time interval
@@ -71,6 +74,7 @@ for i in 1:length(Fexp)
     push!(absFexp, abs(Fexp[i]))
 end
 
+println("start fftbm")
 num = 0.0:0.5:20
 for i in num
     b = t -> 6*pi*1e-3*r+i*1e-5
@@ -93,7 +97,7 @@ end
 plot(num, AA)
 name = filepostion*"/result/"*filename*"/"*filename*"_AA.png"
 savefig(name)
-
+println("end fftbm")
 
 b = t -> 6*pi*1e-3*r + num[findfirst(x->x==minimum(AA),AA)]*1e-5
 prob = ODEProblem(pendulum,u₀,tspan,b)
@@ -108,11 +112,13 @@ end
 c = crosscor(newlight, result)
 cmax = maximum(c)
 c = c/cmax
+t = findfirst(x->x==1.0, c)
+println("t: "*string(t*dt))
 
 function graph(start, d)
-    t = findfirst(x->x==1.0, c)
-    plot(sol.t[start:start+d], newlight[start:start+d], label = "data", title = "simulation at b = "*string(b(0)))
-    plot!(sol.t[start:start+d],result[start-t:start+d-t],label = "simulation")
+    
+    plot(sol.t[start:start+d], newlight[start:start+d], label = "data", title = "simulation at b = "*string(b(0)), linealpha = 1.0)
+    plot!(sol.t[start:start+d],result[start-t:start+d-t],label = "simulation", linealpha = 0.7)
     xlabel!("Time(s)")
     ylabel!("Light Intensity(%)")
     savefig(filepostion*"/result/"*filename*"/"*filename*" SIM("*string(start*dt)*", "*string((start+d)*dt)*").png")
