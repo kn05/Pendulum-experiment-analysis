@@ -115,5 +115,7 @@ function graph(start, d)
     plot!(sol.t[start:start+d],result[start-t:start+d-t],label = "simulation")
     xlabel!("Time(s)")
     ylabel!("Light Intensity(%)")
-    savefig(filepostion*"/result/"*filename*"/"*filename*"simulation("*string(start*dt)*", "*string((start+d)*dt)*").png")
+    savefig(filepostion*"/result/"*filename*"/"*filename*" SIM("*string(start*dt)*", "*string((start+d)*dt)*").png")
 end
+
+graph(100, 1000)
