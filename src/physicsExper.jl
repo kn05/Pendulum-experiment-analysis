@@ -71,7 +71,7 @@ for i in 1:length(Fexp)
     push!(absFexp, abs(Fexp[i]))
 end
 
-num = 0.0:0.4:16
+num = 0.0:0.5:20
 for i in num
     b = t -> 6*pi*1e-3*r+i*1e-5
     prob = ODEProblem(pendulum,u₀,tspan,b)
