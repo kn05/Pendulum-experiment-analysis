@@ -3,6 +3,7 @@ using Plots
 using CSV
 using FFTW
 using StatsBase
+using Base.Threads
 
 filepostion = "/home/gnugnu/문서/Pendulum-experiment-analysis"
 print("filename: ")
@@ -76,7 +77,7 @@ end
 
 println("start fftbm")
 num = 0.0:0.5:20
-for i in num
+@threads for i in num
     b = t -> 6*pi*1e-3*r+i*1e-5
     prob = ODEProblem(pendulum,u₀,tspan,b)
     alg = RK4()
@@ -124,4 +125,4 @@ function graph(start, d)
     savefig(filepostion*"/result/"*filename*"/"*filename*" SIM("*string(start*dt)*", "*string((start+d)*dt)*").png")
 end
 
-graph(100, 1000)
+graph(100, n-200)
