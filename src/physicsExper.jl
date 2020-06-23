@@ -68,34 +68,33 @@ function pendulum(du,u,p,t)
     du[2] = -g/l*sin(u[1]) - p(t)*(u[2])/m  # ω'(t) = -g/l sin θ(t) - b ω(t) / m
 end
 
-AA = Float64[]
 Fexp = fft(newlight)
-absFexp = Float64[]
+absFexp = Array{Float64}(undef, length(Fexp))
 for i in 1:length(Fexp)
     push!(absFexp, abs(Fexp[i]))
 end
 
 println("start fftbm")
 num = 0.0:0.5:20
-@threads for i in num
-    b = t -> 6*pi*1e-3*r+i*1e-5
+AA = Array{Float64}(undef, length(num))
+@threads for i in 1:length(num)
+    b = t -> 6*pi*1e-3*r+num[i]*1e-5
     prob = ODEProblem(pendulum,u₀,tspan,b)
     alg = RK4()
     sol = solve(prob,alg,dt = 2e-3,adaptive=false)
-    result = Float64[]
-    for i in 1:length(sol.t)
-        push!(result, f2(sol[1,i]))
+    result = Array{Float64}(undef, length(sol.t))
+    for j in 1:length(sol.t)
+        result[j] = f2(sol[1,j])
     end
-    d= n
-    Fcal = fft(result[1:d])
-    absdeltaF = Float64[]
-    for i in 1:length(Fexp)
-        push!(absdeltaF, abs(Fexp[i]-Fcal[i]))
+    Fcal = fft(result[1:n])
+    absdeltaF = Array{Float64}(undef, length(Fexp))
+    for j in 1:length(Fexp)
+        absdeltaF = abs(Fexp[j]-Fcal[j])
     end
     x = sum(absdeltaF)/sum(absFexp)
-    push!(AA, x)
+    global AA[i] = x
 end
-plot(num, AA)
+plot(num, AA, title = "FFTBM", label = "AA")
 name = filepostion*"/result/"*filename*"/"*filename*"_AA.png"
 savefig(name)
 println("end fftbm")
@@ -106,7 +105,7 @@ alg = RK4()
 sol = solve(prob,alg,tstops = tstop ,adaptive=false)
 
 result = Float64[]
-for i in 1:length(light)
+for i in 1:length(newlight)
     push!(result, f2(sol[1,i]))
 end
 
@@ -114,10 +113,9 @@ c = crosscor(newlight, result)
 cmax = maximum(c)
 c = c/cmax
 t = findfirst(x->x==1.0, c)
-println("t: "*string(t*dt))
+println("t: "*string(t))
 
 function graph(start, d)
-    
     plot(sol.t[start:start+d], newlight[start:start+d], label = "data", title = "simulation at b = "*string(b(0)), linealpha = 1.0)
     plot!(sol.t[start:start+d],result[start-t:start+d-t],label = "simulation", linealpha = 0.7)
     xlabel!("Time(s)")
@@ -125,4 +123,14 @@ function graph(start, d)
     savefig(filepostion*"/result/"*filename*"/"*filename*" SIM("*string(start*dt)*", "*string((start+d)*dt)*").png")
 end
 
-graph(100, n-200)
+print("how many?")
+number = parse(Int64, readline())
+for i in 1:number
+print("start")
+start = parse(Int64, readline())
+print("d")
+d = parse(Int64, readline())
+graph(start, d)
+end
+
+
