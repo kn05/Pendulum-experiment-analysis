@@ -3,6 +3,7 @@ using Plots
 using CSV
 using FFTW
 using StatsBase
+using DataFrames
 using Base.Threads
 
 filepostion = "/home/gnugnu/문서/Pendulum-experiment-analysis"
@@ -71,14 +72,16 @@ end
 Fexp = fft(newlight)
 absFexp = Array{Float64}(undef, length(Fexp))
 for i in 1:length(Fexp)
-    push!(absFexp, abs(Fexp[i]))
+    absFexp = abs(Fexp[i])
 end
 
 println("start fftbm")
 num = 0.0:0.5:20
 AA = Array{Float64}(undef, length(num))
+bb = Array{Float64}(undef, length(num))
 @threads for i in 1:length(num)
     b = t -> 6*pi*1e-3*r+num[i]*1e-5
+    bb[i] = b(0)
     prob = ODEProblem(pendulum,u₀,tspan,b)
     alg = RK4()
     sol = solve(prob,alg,dt = 2e-3,adaptive=false)
@@ -94,12 +97,15 @@ AA = Array{Float64}(undef, length(num))
     x = sum(absdeltaF)/sum(absFexp)
     global AA[i] = x
 end
-plot(num, AA, title = "FFTBM", label = "AA")
+plot(bb, AA, title = "FFTBM", label = "AA")
+xlabel!("b (1/s)")
+ylabel!("AA")
 name = filepostion*"/result/"*filename*"/"*filename*"_AA.png"
 savefig(name)
 println("end fftbm")
 
 b = t -> 6*pi*1e-3*r + num[findfirst(x->x==minimum(AA),AA)]*1e-5
+bstring = string(b(0))
 prob = ODEProblem(pendulum,u₀,tspan,b)
 alg = RK4()
 sol = solve(prob,alg,tstops = tstop ,adaptive=false)
@@ -116,7 +122,8 @@ t = findfirst(x->x==1.0, c)
 println("t: "*string(t))
 
 function graph(start, d)
-    plot(sol.t[start:start+d], newlight[start:start+d], label = "data", title = "simulation at b = "*string(b(0)), linealpha = 1.0)
+
+    plot(sol.t[start:start+d], newlight[start:start+d], label = "data", title = "simulation at b = "*bstring, linealpha = 1.0)
     plot!(sol.t[start:start+d],result[start-t:start+d-t],label = "simulation", linealpha = 0.7)
     xlabel!("Time(s)")
     ylabel!("Light Intensity(%)")
@@ -133,4 +140,7 @@ d = parse(Int64, readline())
 graph(start, d)
 end
 
+df = DataFrame(Time = sol.t[t+1:n], Data = newlight[t+1:n], Simulation = result[1:n-t])
+print(df)
+CSV.write(filepostion*"/result/"*filename*"/"*filename*"_result.csv", df)
 
