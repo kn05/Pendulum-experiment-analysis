@@ -72,14 +72,14 @@ end
 Fexp = fft(newlight)
 absFexp = Array{Float64}(undef, length(Fexp))
 for i in 1:length(Fexp)
-    absFexp = abs(Fexp[i])
+    absFexp[i] = abs(Fexp[i])
 end
 
 println("start fftbm")
 num = 0.0:0.5:20
 AA = Array{Float64}(undef, length(num))
 bb = Array{Float64}(undef, length(num))
-@threads for i in 1:length(num)
+for i in 1:length(num)
     b = t -> 6*pi*1e-3*r+num[i]*1e-5
     bb[i] = b(0)
     prob = ODEProblem(pendulum,u₀,tspan,b)
